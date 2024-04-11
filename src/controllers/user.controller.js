@@ -3,9 +3,28 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { z } from "zod";
-
 import userValidation from "../utils/user_validation.js";
+
+const generateAccessAndRefreshTokens = async (_id) => {
+  try {
+    const user = await User.findById(_id);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "something went wrong while generate refresh and access token"
+    );
+  }
+};
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, password, role, studentId, fullName } = req.body;
@@ -59,4 +78,97 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
 
-export { registerUser };
+// Admin login controller
+const adminLogin = asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  const admin = await User.findOne({ username, role: "admin" });
+  if (!admin || !(await admin.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Invalid credentials");
+  }
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    admin._id
+  );
+  const loggedInUser = await User.findById(admin._id).select(
+    "-password -refreshToken"
+  );
+  //   console.log(loggedInUser);
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "LoggedIn SuccessFull"
+      )
+    );
+});
+
+// Instructor login controller
+const instructorLogin = asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  const instructor = await User.findOne({ username, role: "instructor" });
+  if (!instructor || !(await instructor.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Invalid credentials");
+  }
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    instructor._id
+  );
+  const loggedInUser = await User.findById(instructor._id).select(
+    "-password -refreshToken"
+  );
+  //   console.log(loggedInUser);
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "LoggedIn SuccessFull"
+      )
+    );
+});
+
+// Student login controller
+const studentLogin = asyncHandler(async (req, res) => {
+  const { username, password } = req.body;
+  const student = await User.findOne({ username, role: "student" });
+  if (!student || !(await student.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Invalid credentials");
+  }
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    student._id
+  );
+  const loggedInUser = await User.findById(student._id).select(
+    "-password -refreshToken"
+  );
+  //   console.log(loggedInUser);
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "LoggedIn SuccessFull"
+      )
+    );
+});
+
+export { registerUser, adminLogin, instructorLogin, studentLogin };
