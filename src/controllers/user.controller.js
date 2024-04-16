@@ -124,6 +124,28 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+const getPendingApprovalRequests = asyncHandler(async (req, res) => {
+  const pendingUsers = await User.find({ isApproved: false });
+  res.json(new ApiResponse(200, pendingUsers, "Pending approval requests"));
+});
+
+const approveUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { isApproved } = req.body;
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    user.isApproved = isApproved;
+    await user.save();
+    res.json(new ApiResponse(200, user, "User approval status updated"));
+  } catch (error) {
+    res
+      .status(error.statusCode || 500)
+      .json(new ApiError(error.statusCode || 500, error.message));
+  }
+});
 const getAllUsers = asyncHandler(async (req, res) => {
   try {
     const users = await User.find().select("-password -refreshToken");
@@ -147,5 +169,25 @@ const getUserById = asyncHandler(async (req, res) => {
       .json(new ApiError(error.statusCode || 500, error.message));
   }
 });
+const removeMember = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
 
-export { registerUser, loginUser, getAllUsers, getUserById };
+  try {
+    await User.findByIdAndDelete(userId);
+    res.json(new ApiResponse(200, null, "Member removed from platform"));
+  } catch (error) {
+    res
+      .status(error.statusCode || 500)
+      .json(new ApiError(error.statusCode || 500, error.message));
+  }
+});
+
+export {
+  registerUser,
+  loginUser,
+  getAllUsers,
+  getUserById,
+  getPendingApprovalRequests,
+  approveUser,
+  removeMember,
+};

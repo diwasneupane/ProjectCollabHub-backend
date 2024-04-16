@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       required: true,
-      unique: true,
+
       lowercase: true,
       trim: true,
     },
@@ -36,6 +36,14 @@ const userSchema = new mongoose.Schema(
     },
     refreshToken: {
       type: String,
+    },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    isRemoved: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
