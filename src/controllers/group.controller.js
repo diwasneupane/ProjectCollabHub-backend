@@ -1,10 +1,10 @@
 import Group from "../models/groups.model.js";
 import { Project } from "../models/project.model.js";
+import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-// Create Group
 const createGroup = asyncHandler(async (req, res) => {
   const { name } = req.body;
   try {
@@ -24,7 +24,6 @@ const createGroup = asyncHandler(async (req, res) => {
   }
 });
 
-// Get All Groups
 const getAllGroups = asyncHandler(async (req, res) => {
   try {
     const groups = await Group.find();
@@ -34,7 +33,6 @@ const getAllGroups = asyncHandler(async (req, res) => {
   }
 });
 
-// Get Group by ID
 const getGroupById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
@@ -50,7 +48,6 @@ const getGroupById = asyncHandler(async (req, res) => {
   }
 });
 
-// Update Group
 const updateGroup = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
@@ -67,7 +64,6 @@ const updateGroup = asyncHandler(async (req, res) => {
   }
 });
 
-// Delete Group
 const deleteGroup = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
@@ -83,7 +79,6 @@ const deleteGroup = asyncHandler(async (req, res) => {
   }
 });
 
-// Link Project to Group
 const linkProjectToGroup = asyncHandler(async (req, res) => {
   const { groupId, projectId } = req.params;
   try {
@@ -104,9 +99,87 @@ const linkProjectToGroup = asyncHandler(async (req, res) => {
       new ApiResponse(200, group, "Project linked to the group successfully")
     );
   } catch (error) {
-    res
-      .status(error.statusCode || 500)
-      .json(new ApiError(error.statusCode || 500, error.message));
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(error.statusCode, null, error.message));
+    } else {
+      return res
+        .status(500)
+        .json(new ApiResponse(500, null, "Internal Server Error"));
+    }
+  }
+});
+
+const assignStudentToGroup = asyncHandler(async (req, res) => {
+  const { groupId, userId } = req.params;
+  try {
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new ApiError(404, "Group not found");
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    if (user.role !== "student") {
+      throw new ApiError(400, "User is not a student");
+    }
+
+    if (group.students.includes(userId)) {
+      throw new ApiError(400, "Student is already assigned to this group");
+    }
+
+    group.students.push(userId);
+    await group.save();
+
+    res.json(
+      new ApiResponse(200, group, "Student assigned to group successfully")
+    );
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(error.statusCode, null, error.message));
+    } else {
+      return res
+        .status(500)
+        .json(new ApiResponse(500, null, "Internal Server Error"));
+    }
+  }
+});
+
+const addInstructorToGroup = asyncHandler(async (req, res) => {
+  const { groupId, userId } = req.params;
+  try {
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new ApiError(404, "Group not found");
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    if (user.role !== "instructor") {
+      throw new ApiError(400, "User is not an instructor");
+    }
+    group.instructor = userId;
+    await group.save();
+    res.json(
+      new ApiResponse(200, group, "Instructor added to group successfully")
+    );
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(error.statusCode, null, error.message));
+    } else {
+      return res
+        .status(500)
+        .json(new ApiResponse(500, null, "Internal Server Error"));
+    }
   }
 });
 
@@ -117,4 +190,6 @@ export {
   updateGroup,
   deleteGroup,
   linkProjectToGroup,
+  addInstructorToGroup,
+  assignStudentToGroup,
 };

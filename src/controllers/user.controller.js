@@ -77,17 +77,33 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
 
-// Admin login controller
-const adminLogin = asyncHandler(async (req, res) => {
+const loginUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
-  const admin = await User.findOne({ username, role: "admin" });
-  if (!admin || !(await admin.isPasswordCorrect(password))) {
+
+  // Find the user
+  const user = await User.findOne({ username });
+
+  if (!user || !(await user.isPasswordCorrect(password))) {
     throw new ApiError(401, "Invalid credentials");
   }
+
+  // Determine user role
+  let role = "";
+  if (user.role === "admin") {
+    role = "admin";
+  } else if (user.role === "instructor") {
+    role = "instructor";
+  } else if (user.role === "student") {
+    role = "student";
+  }
+
+  // Generate tokens
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-    admin._id
+    user._id
   );
-  const loggedInUser = await User.findById(admin._id).select(
+
+  // Send response
+  const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
 
@@ -102,72 +118,34 @@ const adminLogin = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, accessToken, refreshToken },
+        { user: loggedInUser, accessToken, refreshToken, role },
         "LoggedIn SuccessFull"
       )
     );
 });
 
-// Instructor login controller
-const instructorLogin = asyncHandler(async (req, res) => {
-  const { username, password } = req.body;
-  const instructor = await User.findOne({ username, role: "instructor" });
-  if (!instructor || !(await instructor.isPasswordCorrect(password))) {
-    throw new ApiError(401, "Invalid credentials");
+const getAllUsers = asyncHandler(async (req, res) => {
+  try {
+    const users = await User.find().select("-password -refreshToken");
+    res.json(new ApiResponse(200, users, "Users fetched successfully"));
+  } catch (error) {
+    res.status(500).json(new ApiError(500, error.message));
   }
-  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-    instructor._id
-  );
-  const loggedInUser = await User.findById(instructor._id).select(
-    "-password -refreshToken"
-  );
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-  res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        { user: loggedInUser, accessToken, refreshToken },
-        "LoggedIn SuccessFull"
-      )
-    );
 });
 
-// Student login controller
-const studentLogin = asyncHandler(async (req, res) => {
-  const { username, password } = req.body;
-  const student = await User.findOne({ username, role: "student" });
-  if (!student || !(await student.isPasswordCorrect(password))) {
-    throw new ApiError(401, "Invalid credentials");
+const getUserById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await User.findById(id).select("-password -refreshToken");
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    res.json(new ApiResponse(200, user, "User fetched successfully"));
+  } catch (error) {
+    res
+      .status(error.statusCode || 500)
+      .json(new ApiError(error.statusCode || 500, error.message));
   }
-  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-    student._id
-  );
-  const loggedInUser = await User.findById(student._id).select(
-    "-password -refreshToken"
-  );
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-  res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        { user: loggedInUser, accessToken, refreshToken },
-        "LoggedIn SuccessFull"
-      )
-    );
 });
 
-export { registerUser, adminLogin, instructorLogin, studentLogin };
+export { registerUser, loginUser, getAllUsers, getUserById };
