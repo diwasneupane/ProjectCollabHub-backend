@@ -3,7 +3,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
 import { z } from "zod";
 import userValidation from "../utils/user_validation.js";
 
@@ -91,7 +90,7 @@ const adminLogin = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(admin._id).select(
     "-password -refreshToken"
   );
-  //   console.log(loggedInUser);
+
   const options = {
     httpOnly: true,
     secure: true,
@@ -122,7 +121,7 @@ const instructorLogin = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(instructor._id).select(
     "-password -refreshToken"
   );
-  //   console.log(loggedInUser);
+
   const options = {
     httpOnly: true,
     secure: true,
@@ -153,7 +152,7 @@ const studentLogin = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(student._id).select(
     "-password -refreshToken"
   );
-  //   console.log(loggedInUser);
+
   const options = {
     httpOnly: true,
     secure: true,
