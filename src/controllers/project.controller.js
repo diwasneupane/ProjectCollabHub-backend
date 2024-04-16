@@ -58,5 +58,13 @@ const updateProject = asyncHandler(async (req, res) => {
       .json(new ApiError(error.statusCode || 400, error.message));
   }
 });
+const getProjects = asyncHandler(async (req, res) => {
+  try {
+    const projects = await Project.find();
+    res.json(projects);
+  } catch (error) {
+    res.status(500).json(new ApiError(500, error.message));
+  }
+});
 
-export { addProject, deleteProject, updateProject };
+export { addProject, deleteProject, updateProject, getProjects };
