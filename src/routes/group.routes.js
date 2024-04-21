@@ -8,6 +8,8 @@ import {
   assignStudentToGroup,
   addInstructorToGroup,
   removeStudentFromGroup,
+  getGroupWithMembers,
+  flagGroupAsAtRisk,
 } from "../controllers/group.controller.js";
 import {
   authenticateToken,
@@ -64,6 +66,19 @@ router.get(
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
   getGroupById
+);
+router.get(
+  "/groups/:groupId/members",
+  authenticateToken,
+  authorizeRole(["instructor", "admin"]),
+  getGroupWithMembers
+);
+
+router.patch(
+  "/groups/:groupId/flag-at-risk",
+  authenticateToken,
+  authorizeRole(["instructor", "admin"]),
+  flagGroupAsAtRisk
 );
 
 export default router;

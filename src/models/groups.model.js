@@ -28,6 +28,10 @@ const groupSchema = new mongoose.Schema({
       ref: "Message",
     },
   ],
+  atRisk: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const Group = mongoose.model("Group", groupSchema);

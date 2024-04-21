@@ -220,6 +220,32 @@ const addInstructorToGroup = asyncHandler(async (req, res) => {
     }
   }
 });
+const getGroupWithMembers = asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+
+  const group = await Group.findById(groupId).populate("students instructor");
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  res.json(new ApiResponse(200, group, "Group details fetched successfully"));
+});
+
+const flagGroupAsAtRisk = asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+
+  const group = await Group.findById(groupId);
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  group.atRisk = true;
+  await group.save();
+
+  res.json(
+    new ApiResponse(200, group, "Group flagged as 'at risk' successfully")
+  );
+});
 
 export {
   createGroup,
@@ -231,4 +257,6 @@ export {
   addInstructorToGroup,
   assignStudentToGroup,
   removeStudentFromGroup,
+  getGroupWithMembers,
+  flagGroupAsAtRisk,
 };
