@@ -1,45 +1,52 @@
-import { ApiError } from "../utils/ApiError.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
+import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const verifyJWT = asyncHandler(async (req, _, next) => {
+const authenticateToken = asyncHandler(async (req, res, next) => {
+  let token = null;
+
+  if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  } else if (req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    token = authHeader.split(" ")[1];
+  }
+
+  if (!token) {
+    return next(new ApiError(401, "Unauthorized: No token provided"));
+  }
+
   try {
-    const token =
-      req.cookies?.accessToken ||
-      req.header("Authorization")?.replace("Bearer ", "");
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
-    if (!token) {
-      throw new ApiError(401, "Unauthorized: Token not provided");
-    }
+    req.user = {
+      _id: decoded._id,
+      role: decoded.role,
+    };
 
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
-    // Logging decoded token (excluding sensitive data)
-    console.log({
-      userId: decodedToken?._id,
-      username: decodedToken?.username,
-    });
-
-    // Retrieve user from database using token payload
-    const user = await User.findById(decodedToken?._id).select(
-      "-password -refreshToken"
-    );
-
-    if (!user) {
-      throw new ApiError(401, "Unauthorized: User not found");
-    }
-
-    // Attach user object to request for further processing
-    req.user = user;
     next();
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      throw new ApiError(401, "Unauthorized: Token expired");
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      throw new ApiError(401, "Unauthorized: Invalid token");
-    } else {
-      throw new ApiError(401, error?.message || "Unauthorized: Invalid token");
-    }
+    console.error("JWT verification error:", error.message);
+    return next(new ApiError(401, "Unauthorized: Invalid or expired token"));
   }
 });
+const authorizeRole = (allowedRoles) =>
+  asyncHandler((req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return next(new ApiError(401, "Access denied: User not authenticated"));
+    }
+
+    const userRole = req.user.role;
+    console.log("User role:", userRole);
+
+    if (!allowedRoles.includes(userRole)) {
+      return next(
+        new ApiError(403, `Access denied: Role '${userRole}' not allowed`)
+      );
+    }
+
+    next();
+  });
+
+export { authenticateToken, authorizeRole };

@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
         },
         message: "Student ID is only applicable for students",
       },
-      unique: true,
+      // unique: true,
     },
     fullName: {
       type: String,

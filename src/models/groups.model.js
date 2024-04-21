@@ -22,6 +22,12 @@ const groupSchema = new mongoose.Schema({
       ref: "Project",
     },
   ],
+  messages: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+    },
+  ],
 });
 
 const Group = mongoose.model("Group", groupSchema);
