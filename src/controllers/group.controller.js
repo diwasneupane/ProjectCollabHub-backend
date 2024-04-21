@@ -150,6 +150,44 @@ const assignStudentToGroup = asyncHandler(async (req, res) => {
     }
   }
 });
+const removeStudentFromGroup = asyncHandler(async (req, res) => {
+  const { groupId, userId } = req.params;
+
+  try {
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new ApiError(404, "Group not found");
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    if (user.role !== "student") {
+      throw new ApiError(400, "User is not a student");
+    }
+
+    if (!group.students.includes(userId)) {
+      throw new ApiError(400, "Student is not in this group");
+    }
+
+    group.students = group.students.filter((id) => id.toString() !== userId);
+    await group.save();
+
+    res.json(
+      new ApiResponse(200, group, "Student removed from group successfully")
+    );
+  } catch (error) {
+    if (error instanceof ApiError) {
+      res
+        .status(error.statusCode)
+        .json(new ApiResponse(error.statusCode, null, error.message));
+    } else {
+      res.status(500).json(new ApiResponse(500, null, "Internal Server Error"));
+    }
+  }
+});
 
 const addInstructorToGroup = asyncHandler(async (req, res) => {
   const { groupId, userId } = req.params;
@@ -192,4 +230,5 @@ export {
   linkProjectToGroup,
   addInstructorToGroup,
   assignStudentToGroup,
+  removeStudentFromGroup,
 };
