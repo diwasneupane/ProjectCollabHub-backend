@@ -8,10 +8,16 @@ const messageSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+    required: true,
   },
   group: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Group",
+    required: false,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
     required: false,
   },
   attachment: {

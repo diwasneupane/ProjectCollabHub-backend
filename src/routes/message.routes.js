@@ -3,6 +3,8 @@ import {
   sendMessageToGroup,
   sendMessageToUser,
   wordSearchInGroups,
+  getGroupMessages,
+  getUserMessages,
 } from "../controllers/message.controller.js";
 import {
   authenticateToken,
@@ -16,12 +18,12 @@ const upload = multerMiddleware.single("file");
 
 router.post(
   "/send-message-to-group",
-  multerMiddleware.single("file"),
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
-
+  upload,
   sendMessageToGroup
 );
+
 router.post(
   "/send-message-to-user",
   authenticateToken,
@@ -37,5 +39,14 @@ router.get(
   authorizeRole(["admin", "instructor", "student"]),
   wordSearchInGroups
 );
+
+router.get(
+  "/group-messages/:groupId",
+  authenticateToken,
+  authorizeRole(["admin", "instructor", "student"]),
+  getGroupMessages
+);
+
+router.get("/user-messages", authenticateToken, getUserMessages);
 
 export default router;
