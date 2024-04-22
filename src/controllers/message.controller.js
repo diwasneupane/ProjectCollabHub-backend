@@ -4,7 +4,6 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 
-// Send message to a group
 const sendMessageToGroup = asyncHandler(async (req, res) => {
   const { groupId, content } = req.body;
   const { _id: senderId, role: userRole } = req.user;
@@ -58,7 +57,6 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, message });
 });
 
-// Send message to a user
 const sendMessageToUser = asyncHandler(async (req, res) => {
   const { userId, content } = req.body;
   const senderId = req.user._id;
@@ -143,7 +141,6 @@ const getGroupMessages = asyncHandler(async (req, res) => {
 const getUserMessages = asyncHandler(async (req, res) => {
   const { _id: currentUserId } = req.user;
 
-  // Fetch messages where the current user is the recipient
   const messages = await Message.find({ user: currentUserId });
 
   if (!messages || messages.length === 0) {
