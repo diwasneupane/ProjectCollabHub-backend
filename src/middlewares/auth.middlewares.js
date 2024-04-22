@@ -6,7 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const authenticateToken = asyncHandler(async (req, res, next) => {
   let token = null;
 
-  if (req.cookies && req.cookies.accessToken) {
+  if ((req.cookies && req.cookies.accessToken) || req.body.accessToken) {
     token = req.cookies.accessToken;
   } else if (req.headers.authorization) {
     const authHeader = req.headers.authorization;

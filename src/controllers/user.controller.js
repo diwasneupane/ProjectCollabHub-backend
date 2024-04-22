@@ -24,7 +24,6 @@ const generateAccessAndRefreshTokens = async (_id) => {
     );
   }
 };
-
 const registerUser = asyncHandler(async (req, res) => {
   const { username, password, role, studentId, fullName } = req.body;
 
@@ -48,12 +47,21 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   if ([username, password].some((field) => field?.trim() === "")) {
-    throw new ApiError(409, "All fields are required");
+    throw new ApiError(400, "All fields are required");
   }
 
+  // Check if username already exists
   const existedUser = await User.findOne({ username });
   if (existedUser) {
     throw new ApiError(400, "Username already exists");
+  }
+
+  // Check if studentId already exists for students
+  if (role === "student") {
+    const existingStudent = await User.findOne({ studentId });
+    if (existingStudent) {
+      throw new ApiError(400, "Student ID already exists");
+    }
   }
 
   const user = await User.create({
@@ -72,7 +80,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while creating user");
   }
 
-  return res
+  res
     .status(200)
     .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
@@ -97,12 +105,10 @@ const loginUser = asyncHandler(async (req, res) => {
     role = "student";
   }
 
-  // Generate tokens
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
     user._id
   );
 
-  // Send response
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
@@ -123,7 +129,33 @@ const loginUser = asyncHandler(async (req, res) => {
       )
     );
 });
+const logoutUser = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
 
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  await User.findByIdAndUpdate(
+    userId,
+    { $unset: { refreshToken: 1 } },
+    { new: true }
+  );
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  res
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
+});
 const getPendingApprovalRequests = asyncHandler(async (req, res) => {
   const pendingUsers = await User.find({ isApproved: false });
   res.json(new ApiResponse(200, pendingUsers, "Pending approval requests"));
@@ -185,6 +217,7 @@ const removeMember = asyncHandler(async (req, res) => {
 export {
   registerUser,
   loginUser,
+  logoutUser,
   getAllUsers,
   getUserById,
   getPendingApprovalRequests,

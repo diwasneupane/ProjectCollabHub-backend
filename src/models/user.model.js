@@ -27,12 +27,20 @@ const userSchema = new mongoose.Schema(
         },
         message: "Student ID is only applicable for students",
       },
-      // unique: true,
+      unique: true,
     },
     fullName: {
       type: String,
       trim: true,
       required: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
     },
     refreshToken: {
       type: String,
@@ -66,6 +74,7 @@ userSchema.methods.generateAccessToken = function () {
     {
       _id: this._id,
       role: this.role,
+      username: this.username,
     },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }

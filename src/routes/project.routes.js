@@ -18,7 +18,11 @@ router
 
 router
   .route("/Projects")
-  .get(authenticateToken, authorizeRole(["admin", "instructor"]), getProjects);
+  .get(
+    authenticateToken,
+    authorizeRole(["admin", "instructor", "student"]),
+    getProjects
+  );
 
 router
   .route("/updateProjects/:id")
