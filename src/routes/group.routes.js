@@ -57,8 +57,7 @@ router.delete(
 );
 router.get(
   "/groups",
-  authenticateToken,
-  authorizeRole(["admin", "instructor", "student"]),
+
   getAllGroups
 );
 router.get(

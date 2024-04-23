@@ -16,13 +16,7 @@ router
   .route("/addProjects")
   .post(authenticateToken, authorizeRole(["admin", "instructor"]), addProject);
 
-router
-  .route("/Projects")
-  .get(
-    authenticateToken,
-    authorizeRole(["admin", "instructor", "student"]),
-    getProjects
-  );
+router.route("/Projects").get(getProjects);
 
 router
   .route("/updateProjects/:id")

@@ -4,16 +4,24 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
 const createGroup = asyncHandler(async (req, res) => {
-  const { name } = req.body;
+  const { name, instructor, students, projects } = req.body;
+
   try {
     const existingGroup = await Group.findOne({ name });
     if (existingGroup) {
       throw new ApiError(400, "Group with this name already exists");
     }
-    const group = new Group({ name });
+
+    const group = new Group({
+      name,
+      instructor,
+      students: students || [],
+      projects: projects || [],
+    });
+
     await group.save();
+
     res
       .status(201)
       .json(new ApiResponse(201, group, "Group created successfully"));
