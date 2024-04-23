@@ -20,8 +20,8 @@ const router = Router();
 
 router.post(
   "/groups",
-  // authenticateToken,
-  // authorizeRole(["admin", "instructor"]),
+  authenticateToken,
+  authorizeRole(["admin", "instructor"]),
   createGroup
 );
 router.delete(

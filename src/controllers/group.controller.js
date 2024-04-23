@@ -9,9 +9,6 @@ const createGroup = asyncHandler(async (req, res) => {
 
   try {
     const existingGroup = await Group.findOne({ name });
-    if (existingGroup) {
-      throw new ApiError(400, "Group with this name already exists");
-    }
 
     const group = new Group({
       name,

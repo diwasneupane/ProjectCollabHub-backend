@@ -42,8 +42,8 @@ router.get(
 
 router.get(
   "/group-messages/:groupId",
-  authenticateToken,
-  authorizeRole(["admin", "instructor", "student"]),
+  // authenticateToken,
+  // authorizeRole(["admin", "instructor", "student"]),
   getGroupMessages
 );
 

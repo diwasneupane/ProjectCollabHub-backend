@@ -60,23 +60,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Username already exists");
   }
 
-  const existingEmail = await User.findOne({ email });
-  if (existingEmail) {
-    throw new ApiError(400, "Email already exists");
-  }
-
-  const existingPhone = await User.findOne({ phone });
-  if (existingPhone) {
-    throw new ApiError(400, "Phone number already exists");
-  }
-
-  if (role === "student") {
-    const existingStudent = await User.findOne({ studentId });
-    if (existingStudent) {
-      throw new ApiError(400, "Student ID already exists");
-    }
-  }
-
   const user = await User.create({
     username,
     password,
