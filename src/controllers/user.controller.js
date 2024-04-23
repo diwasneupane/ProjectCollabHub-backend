@@ -25,7 +25,16 @@ const generateAccessAndRefreshTokens = async (_id) => {
   }
 };
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, password, role, studentId, fullName } = req.body;
+  const { username, password, role, studentId, fullName, email, phone } =
+    req.body;
+
+  if (
+    [username, password, fullName, email, phone].some(
+      (field) => field?.trim() === ""
+    )
+  ) {
+    throw new ApiError(400, "All fields are required");
+  }
 
   if (role === "student" && !studentId) {
     throw new ApiError(400, "Student ID is required for students");
@@ -36,7 +45,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   try {
-    userValidation.parse({ username, password });
+    userValidation.parse({ username, password, email, phone });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessage = error.errors.map((err) => err.message).join("; ");
@@ -46,17 +55,21 @@ const registerUser = asyncHandler(async (req, res) => {
     }
   }
 
-  if ([username, password].some((field) => field?.trim() === "")) {
-    throw new ApiError(400, "All fields are required");
-  }
-
-  // Check if username already exists
-  const existedUser = await User.findOne({ username });
-  if (existedUser) {
+  const existingUsername = await User.findOne({ username });
+  if (existingUsername) {
     throw new ApiError(400, "Username already exists");
   }
 
-  // Check if studentId already exists for students
+  const existingEmail = await User.findOne({ email });
+  if (existingEmail) {
+    throw new ApiError(400, "Email already exists");
+  }
+
+  const existingPhone = await User.findOne({ phone });
+  if (existingPhone) {
+    throw new ApiError(400, "Phone number already exists");
+  }
+
   if (role === "student") {
     const existingStudent = await User.findOne({ studentId });
     if (existingStudent) {
@@ -68,11 +81,13 @@ const registerUser = asyncHandler(async (req, res) => {
     username,
     password,
     role,
-    ...(role === "student" && { studentId }),
+    studentId: role === "student" ? studentId : undefined,
     fullName,
+    email,
+    phone,
   });
 
-  const createdUser = await User.findById(user?._id).select(
+  const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
 
@@ -84,7 +99,6 @@ const registerUser = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
-
 const loginUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 

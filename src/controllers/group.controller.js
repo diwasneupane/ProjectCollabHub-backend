@@ -34,13 +34,18 @@ const createGroup = asyncHandler(async (req, res) => {
 
 const getAllGroups = asyncHandler(async (req, res) => {
   try {
-    const groups = await Group.find();
-    res.json(new ApiResponse(200, groups, "Groups fetched successfully"));
+    const groups = await Group.find()
+      .populate("instructor", "name") // Populate instructor with name field
+      .populate("students", "name") // Populate students with name field
+      .populate("projects", "title"); // Populate projects with title field
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, groups, "Groups fetched successfully"));
   } catch (error) {
-    res.status(500).json(new ApiError(500, error.message));
+    res.status(500).json(new ApiResponse(500, "Error fetching groups"));
   }
 });
-
 const getGroupById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
@@ -58,17 +63,40 @@ const getGroupById = asyncHandler(async (req, res) => {
 
 const updateGroup = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
+  const { name, instructor, students, projects } = req.body;
+
   try {
-    const group = await Group.findByIdAndUpdate(id, { name }, { new: true });
+    const updatedData = {};
+
+    if (name) {
+      updatedData.name = name;
+    }
+    if (instructor) {
+      updatedData.instructor = instructor;
+    }
+    if (students) {
+      updatedData.students = students;
+    }
+    if (projects) {
+      updatedData.projects = projects;
+    }
+
+    const group = await Group.findByIdAndUpdate(id, updatedData, { new: true });
+
     if (!group) {
       throw new ApiError(404, "Group not found");
     }
+
     res.json(new ApiResponse(200, group, "Group updated successfully"));
   } catch (error) {
     res
       .status(error.statusCode || 500)
-      .json(new ApiError(error.statusCode || 500, error.message));
+      .json(
+        new ApiError(
+          error.statusCode || 500,
+          error.message || "Internal Server Error"
+        )
+      );
   }
 });
 
