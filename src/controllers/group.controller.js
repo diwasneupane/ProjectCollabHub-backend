@@ -32,8 +32,8 @@ const createGroup = asyncHandler(async (req, res) => {
 const getAllGroups = asyncHandler(async (req, res) => {
   try {
     const groups = await Group.find()
-      .populate("instructor", "name") // Populate instructor with name field
-      .populate("students", "name") // Populate students with name field
+      .populate("instructor", "username") // Populate instructor with name field
+      .populate("students", "username") // Populate students with name field
       .populate("projects", "title"); // Populate projects with title field
 
     res
