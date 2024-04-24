@@ -27,15 +27,15 @@ router.post(
   upload,
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
-  logMulter,
   sendMessageToGroup
 );
 
 router.post(
   "/send-message-to-user",
-  authenticateToken,
-  authorizeRole(["admin"]),
   upload,
+  authenticateToken,
+  authorizeRole(["admin", "instructor", "student"]),
+  logMulter,
   validateMessageInput,
   sendMessageToUser
 );

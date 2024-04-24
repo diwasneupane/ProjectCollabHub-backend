@@ -58,10 +58,12 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, message });
 });
 
-// Send a message to a user
 const sendMessageToUser = asyncHandler(async (req, res) => {
   const { userId, content } = req.body;
   const { _id: senderId } = req.user;
+
+  console.log("Request file:", req.file); // Debugging information
+
   const attachment = req.file
     ? {
         filename: req.file.filename,
@@ -93,7 +95,6 @@ const sendMessageToUser = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, message });
 });
 
-// Word search within groups
 const wordSearchInGroups = asyncHandler(async (req, res) => {
   const { searchTerm } = req.query;
   const { groupIds } = req.body;
