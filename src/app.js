@@ -41,12 +41,27 @@ const io = new Server(server, {
 app.set("io", io);
 
 io.on("connection", (socket) => {
+  console.log("New connection:", socket.id);
+
   socket.on("joinRoom", (room) => {
-    socket.join(room);
+    try {
+      console.log(`Joining room: ${room}`);
+      socket.join(room);
+    } catch (error) {
+      console.error("Error joining room:", error);
+    }
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected", socket.id);
+    try {
+      console.log("User disconnected:", socket.id);
+    } catch (error) {
+      console.error("Error on disconnect:", error);
+    }
+  });
+
+  socket.on("error", (err) => {
+    console.error("Socket error:", err);
   });
 });
 

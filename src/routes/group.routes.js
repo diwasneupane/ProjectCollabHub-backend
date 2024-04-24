@@ -10,6 +10,7 @@ import {
   removeStudentFromGroup,
   getGroupWithMembers,
   flagGroupAsAtRisk,
+  getGroupMessages,
 } from "../controllers/group.controller.js";
 import {
   authenticateToken,
@@ -69,8 +70,14 @@ router.get(
 router.get(
   "/groups/:groupId/members",
   authenticateToken,
-  authorizeRole(["instructor", "admin"]),
+  authorizeRole(["instructor", "admin", "student"]),
   getGroupWithMembers
+);
+router.get(
+  "/groups/:groupId/messages",
+  authenticateToken,
+  authorizeRole(["admin", "instructor", "student"]),
+  getGroupMessages
 );
 
 router.patch(

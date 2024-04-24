@@ -1,4 +1,5 @@
 import Group from "../models/groups.model.js";
+import { Message } from "../models/message.model.js";
 import { Project } from "../models/project.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -264,6 +265,39 @@ const getGroupWithMembers = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, group, "Group details fetched successfully"));
 });
 
+const getGroupMessages = asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+
+  try {
+    const messages = await Message.find({ group: groupId })
+      .populate("sender", "username")
+      .sort({ createdAt: 1 });
+
+    if (!messages) {
+      throw new ApiError(404, "No messages found for the specified group");
+    }
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { messages },
+          "Group messages fetched successfully"
+        )
+      );
+  } catch (error) {
+    res
+      .status(error.statusCode || 500)
+      .json(
+        new ApiResponse(
+          error.statusCode || 500,
+          null,
+          error.message || "Error fetching group messages"
+        )
+      );
+  }
+});
 const flagGroupAsAtRisk = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
 
@@ -294,5 +328,6 @@ export {
   assignStudentToGroup,
   removeStudentFromGroup,
   getGroupWithMembers,
+  getGroupMessages,
   flagGroupAsAtRisk,
 };
