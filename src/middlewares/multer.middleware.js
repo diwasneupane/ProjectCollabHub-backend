@@ -33,4 +33,10 @@ const multerMiddleware = multer({
   limits,
 });
 
+const logMulter = (req, res, next) => {
+  console.log("Uploaded File:", req.file); // Check if the file is here
+  console.log("Request Body:", req.body); // Check the rest of the data
+  next();
+};
+
 export default multerMiddleware;

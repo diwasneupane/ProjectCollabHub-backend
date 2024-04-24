@@ -16,11 +16,18 @@ import { validateMessageInput } from "../middlewares/validateMessage.middleware.
 const router = express.Router();
 const upload = multerMiddleware.single("file");
 
+const logMulter = (req, res, next) => {
+  console.log("Uploaded File:", req.file); // Check if the file is here
+  console.log("Request Body:", req.body); // Check the rest of the data
+  next();
+};
+
 router.post(
   "/send-message-to-group",
+  upload,
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
-  upload,
+  logMulter,
   sendMessageToGroup
 );
 

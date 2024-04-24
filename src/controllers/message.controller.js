@@ -4,10 +4,20 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 
+const isAuthorizedForGroup = (group, userId, userRole) => {
+  const instructorId = group.instructor?.toString();
+  const studentIds = group.students.map((student) => student.toString());
+
+  return (
+    studentIds.includes(userId) ||
+    instructorId === userId ||
+    userRole === "admin"
+  );
+};
+
 const sendMessageToGroup = asyncHandler(async (req, res) => {
   const { groupId, content } = req.body;
   const { _id: senderId, role: userRole } = req.user;
-
   const attachment = req.file
     ? {
         filename: req.file.filename,
@@ -16,27 +26,18 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
       }
     : null;
 
+  // Check if group exists
   const group = await Group.findById(groupId);
-
   if (!group) {
-    return res.status(404).json({ success: false, message: "Group not found" });
+    throw new ApiError(404, "Group not found");
   }
 
-  const instructorId = group.instructor?.toString();
-  const studentIds = group.students.map((student) => student.toString());
-
-  const isAuthorized =
-    studentIds.includes(senderId) ||
-    instructorId === senderId ||
-    userRole === "admin";
-
-  if (!isAuthorized) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to send messages to this group",
-    });
+  // Check authorization
+  if (!isAuthorizedForGroup(group, senderId, userRole)) {
+    throw new ApiError(403, "Not authorized to send messages to this group");
   }
 
+  // Create message and add to group
   const message = await Message.create({
     content,
     group: groupId,
@@ -48,7 +49,7 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   group.messages.push(message._id);
   await group.save();
 
-  // Emit the event to clients connected to this group
+  // Emit message to the group via socket.io
   const io = req.app.get("io");
   if (io) {
     io.to(groupId).emit("newGroupMessage", { message });
@@ -57,9 +58,10 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, message });
 });
 
+// Send a message to a user
 const sendMessageToUser = asyncHandler(async (req, res) => {
   const { userId, content } = req.body;
-  const senderId = req.user._id;
+  const { _id: senderId } = req.user;
   const attachment = req.file
     ? {
         filename: req.file.filename,
@@ -68,11 +70,13 @@ const sendMessageToUser = asyncHandler(async (req, res) => {
       }
     : null;
 
+  // Check if user exists
   const user = await User.findById(userId);
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
+  // Create message and emit via socket.io
   const message = await Message.create({
     content,
     user: userId,
@@ -82,11 +86,14 @@ const sendMessageToUser = asyncHandler(async (req, res) => {
   });
 
   const io = req.app.get("io");
-  io.emit("newUserMessage", { message });
+  if (io) {
+    io.emit("newUserMessage", { message });
+  }
 
   res.status(201).json({ success: true, message });
 });
 
+// Word search within groups
 const wordSearchInGroups = asyncHandler(async (req, res) => {
   const { searchTerm } = req.query;
   const { groupIds } = req.body;
@@ -98,14 +105,6 @@ const wordSearchInGroups = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Search term is required");
   }
 
-  const groups = await Group.find({
-    _id: { $in: groupIds },
-  });
-
-  if (groups.length !== groupIds.length) {
-    throw new ApiError(404, "Some groups not found");
-  }
-
   const messages = await Message.find({
     group: { $in: groupIds },
     content: new RegExp(searchTerm, "i"),
@@ -113,6 +112,8 @@ const wordSearchInGroups = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, messages });
 });
+
+// Get messages for a specific group
 const getGroupMessages = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
   const { _id: userId, role: userRole } = req.user;
@@ -122,15 +123,7 @@ const getGroupMessages = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  const instructorId = group.instructor?.toString();
-  const studentIds = group.students.map((student) => student.toString());
-
-  const isAuthorized =
-    studentIds.includes(userId) ||
-    instructorId === userId ||
-    userRole === "admin";
-
-  if (!isAuthorized) {
+  if (!isAuthorizedForGroup(group, userId, userRole)) {
     throw new ApiError(403, "Not authorized to view messages from this group");
   }
 
@@ -138,10 +131,12 @@ const getGroupMessages = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, messages });
 });
-const getUserMessages = asyncHandler(async (req, res) => {
-  const { _id: currentUserId } = req.user;
 
-  const messages = await Message.find({ user: currentUserId });
+// Get user-specific messages
+const getUserMessages = asyncHandler(async (req, res) => {
+  const { _id: userId } = req.user;
+
+  const messages = await Message.find({ user: userId });
 
   if (!messages || messages.length === 0) {
     throw new ApiError(404, "No messages found for this user");
