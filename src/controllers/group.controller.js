@@ -32,9 +32,9 @@ const createGroup = asyncHandler(async (req, res) => {
 const getAllGroups = asyncHandler(async (req, res) => {
   try {
     const groups = await Group.find()
-      .populate("instructor", "username") // Populate instructor with name field
-      .populate("students", "username") // Populate students with name field
-      .populate("projects", "title"); // Populate projects with title field
+      .populate("instructor", "username")
+      .populate("students", "username")
+      .populate("projects", "title");
 
     res
       .status(200)
@@ -272,12 +272,15 @@ const flagGroupAsAtRisk = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  group.atRisk = true;
+  // Toggle the current 'atRisk' status
+  group.atRisk = !group.atRisk; // If it's true, set it to false; if it's false, set it to true
   await group.save();
 
-  res.json(
-    new ApiResponse(200, group, "Group flagged as 'at risk' successfully")
-  );
+  const message = group.atRisk
+    ? "Group flagged as 'at risk' successfully"
+    : "Group unflagged from 'at risk' successfully";
+
+  return res.status(200).json(new ApiResponse(200, group, message));
 });
 
 export {

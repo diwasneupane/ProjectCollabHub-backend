@@ -12,7 +12,7 @@ const userValidation = z.object({
     .min(8, "Password must be at least 8 characters")
     // Combined regex for stronger password complexity
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@#$%^&*()_++=]+$/,
       "Password must contain at least one lowercase letter, one uppercase letter, one digit, and one special character"
     )
     .nonempty("password is required"),

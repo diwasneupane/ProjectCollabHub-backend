@@ -4,12 +4,6 @@ import cookieParser from "cookie-parser";
 import http from "http";
 import { Server } from "socket.io";
 
-import userRouter from "./routes/user.routes.js";
-import projectRouter from "./routes/project.routes.js";
-import groupRouter from "./routes/group.routes.js";
-import messageRouter from "./routes/message.routes.js";
-// import { authenticateToken } from "./middlewares/auth.middlewares.js";
-
 const app = express();
 
 app.use(
@@ -25,10 +19,16 @@ app.use(cookieParser());
 
 // app.use(authenticateToken);
 
+import userRouter from "./routes/user.routes.js";
+import projectRouter from "./routes/project.routes.js";
+import groupRouter from "./routes/group.routes.js";
+import messageRouter from "./routes/message.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/project", projectRouter);
 app.use("/api/v1/group", groupRouter);
 app.use("/api/v1/message", messageRouter);
+app.use("/api/v1/notification", notificationRouter);
 
 const server = http.createServer(app);
 const io = new Server(server, {
