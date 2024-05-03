@@ -210,7 +210,23 @@ const removeMember = asyncHandler(async (req, res) => {
       .json(new ApiError(error.statusCode || 500, error.message));
   }
 });
-
+const fetchUserRoleById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Assuming you have a User model
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    // Assuming user role is stored in a field called 'role'
+    res.status(200).json({ success: true, role: user.role });
+  } catch (error) {
+    console.error("Error fetching user role:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 export {
   registerUser,
   loginUser,
@@ -220,4 +236,5 @@ export {
   getPendingApprovalRequests,
   approveUser,
   removeMember,
+  fetchUserRoleById,
 };

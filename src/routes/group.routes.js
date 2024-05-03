@@ -11,6 +11,7 @@ import {
   getGroupWithMembers,
   flagGroupAsAtRisk,
   getGroupMessages,
+  getGroupsByStudentId,
 } from "../controllers/group.controller.js";
 import {
   authenticateToken,
@@ -86,5 +87,6 @@ router.patch(
   authorizeRole(["instructor", "admin"]),
   flagGroupAsAtRisk
 );
+router.get("/groups/:studentId", getGroupsByStudentId);
 
 export default router;

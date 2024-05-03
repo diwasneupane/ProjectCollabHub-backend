@@ -1,5 +1,6 @@
 import Group from "../models/groups.model.js";
 import { Message } from "../models/message.model.js";
+import { Notification } from "../models/notification.model.js";
 import { Project } from "../models/project.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -298,25 +299,83 @@ const getGroupMessages = asyncHandler(async (req, res) => {
       );
   }
 });
+
 const flagGroupAsAtRisk = asyncHandler(async (req, res) => {
-  const { groupId } = req.params;
+  const { groupId } = req.params; // Extract group ID from the request parameters
+  const { atRisk } = req.body; // Extract the 'atRisk' status from the request body
 
   const group = await Group.findById(groupId);
   if (!group) {
     throw new ApiError(404, "Group not found");
   }
 
-  // Toggle the current 'atRisk' status
-  group.atRisk = !group.atRisk; // If it's true, set it to false; if it's false, set it to true
+  group.atRisk = atRisk; // Update the 'atRisk' status based on the request body
   await group.save();
 
-  const message = group.atRisk
-    ? "Group flagged as 'at risk' successfully"
-    : "Group unflagged from 'at risk' successfully";
+  const userRole = req.user.role;
 
-  return res.status(200).json(new ApiResponse(200, group, message));
+  const user = await User.findOne({ role: userRole });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const message = atRisk
+    ? `Group '${group.name}' has been flagged as 'at risk'.`
+    : `Group '${group.name}' has been unflagged from 'at risk'.`;
+
+  // Fetch students and instructor details of the group
+  const students = await User.find({ _id: { $in: group.students } });
+  const instructor = await User.findById(group.instructor);
+
+  // Create the notification object with additional details
+  const notification = new Notification({
+    message,
+    recipient: user._id,
+    sender: user._id,
+    groupId: groupId, // Store the group ID in the notification
+    groupDetails: {
+      name: group.name,
+      students: students.map((student) => ({
+        _id: student._id,
+        username: student.username,
+      })),
+      instructor: {
+        _id: instructor._id,
+        username: instructor.username,
+      },
+    },
+  });
+
+  await notification.save();
+  console.log(notification);
+
+  res.status(200).json({
+    success: true,
+    message: "Group's 'at risk' status updated successfully.",
+  });
 });
 
+export const getGroupsByStudentId = async (req, res) => {
+  try {
+    // Extract studentId from request parameters
+    const { studentId } = req.params;
+
+    // Find groups where the student is a member
+    const groups = await Group.find({ students: studentId });
+
+    // Return groups
+    res.status(200).json({
+      success: true,
+      groups,
+    });
+  } catch (error) {
+    console.error("Error fetching groups by student ID:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 export {
   createGroup,
   getAllGroups,
