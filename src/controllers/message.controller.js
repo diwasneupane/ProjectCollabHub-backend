@@ -5,7 +5,8 @@ import Group from "../models/groups.model.js";
 import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import fs from "fs/promises";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import path from "path";
 import { log } from "console";
 import { Notification } from "../models/notification.model.js";
@@ -28,75 +29,114 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   const { groupId, content } = req.body;
   const { _id: senderId, role: userRole } = req.user;
 
-  let attachment = null;
-  if (req.file) {
-    attachment = {
-      filename: req.file.filename,
-      path: req.file.path,
-      mimeType: req.file.mimetype,
+  try {
+    let attachment = null;
+    if (req.file) {
+      attachment = {
+        filename: req.file.filename,
+        path: req.file.path,
+        mimeType: req.file.mimetype,
+      };
+
+      const attachmentFileName = `${Date.now()}_${attachment.filename}`;
+      const currentModuleDir = path.dirname(fileURLToPath(import.meta.url));
+      const uploadsDirectory = path.resolve(
+        currentModuleDir,
+        "../../public/uploads"
+      );
+      const attachmentFilePath = path.join(
+        uploadsDirectory,
+        attachmentFileName
+      );
+
+      await fs.promises.rename(attachment.path, attachmentFilePath);
+      attachment.path = attachmentFilePath;
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Group not found" });
+    }
+
+    if (!isAuthorizedForGroup(group, senderId, userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to send messages to this group",
+      });
+    }
+
+    const sender = await User.findById(senderId);
+    if (!sender) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Sender not found" });
+    }
+
+    let messageData = {
+      group: groupId,
+      sender: senderId,
+      createdAt: new Date(),
     };
+
+    if (content) {
+      messageData.content = content;
+    }
+
+    if (attachment) {
+      messageData.attachment = attachment;
+    } else {
+      if (!content) {
+        return res.status(400).json({
+          success: false,
+          message: "Either content or file attachment is required",
+        });
+      }
+    }
+
+    const message = await Message.create(messageData);
+
+    group.messages.push(message._id);
+    await group.save();
+
+    // Fetch students and instructor details of the group
+    const students = await User.find({ _id: { $in: group.students } });
+    const instructor = await User.findById(group.instructor);
+
+    const notification = new Notification({
+      type: "group_message",
+      message: `${sender.username} sent a new message to the group ${group.name}`,
+      groupId: groupId,
+      sender: senderId,
+      relatedMessage: message._id,
+      groupDetails: {
+        name: group.name,
+        students: students.map((student) => ({
+          _id: student._id,
+          username: student.username,
+        })),
+        instructor: {
+          _id: instructor._id,
+          username: instructor.username,
+        },
+      },
+    });
+
+    await notification.save();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(groupId).emit("newGroupMessage", { message });
+    }
+
+    res
+      .status(201)
+      .json({ success: true, message: "Message sent successfully" });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ success: false, message: "Failed to send message" });
   }
-
-  const group = await Group.findById(groupId);
-  if (!group) {
-    throw new ApiError(404, "Group not found");
-  }
-
-  if (!isAuthorizedForGroup(group, senderId, userRole)) {
-    throw new ApiError(403, "Not authorized to send messages to this group");
-  }
-
-  const sender = await User.findById(senderId);
-  if (!sender) {
-    throw new ApiError(404, "Sender not found");
-  }
-
-  const messageData = {
-    group: groupId,
-    sender: senderId,
-    createdAt: new Date(),
-  };
-
-  if (content) {
-    messageData.content = content;
-  }
-
-  if (attachment) {
-    const attachmentFileName = `${Date.now()}_${attachment.filename}`;
-    const attachmentFilePath = path.join(
-      currentModuleDir,
-      "uploads",
-      attachmentFileName
-    );
-
-    await fs.rename(attachment.path, attachmentFilePath);
-
-    attachment.path = attachmentFilePath;
-    messageData.attachment = attachment;
-  }
-
-  const message = await Message.create(messageData);
-
-  group.messages.push(message._id);
-  await group.save();
-
-  // Create a notification for the group members
-  const notification = new Notification({
-    type: "group_message",
-    message: `${sender.username} sent a new message to the group ${group.name}`,
-    groupId: groupId,
-    sender: senderId,
-    relatedMessage: message._id,
-  });
-
-  await notification.save();
-
-  const io = req.app.get("io");
-  if (io) {
-    io.to(groupId).emit("newGroupMessage", { message });
-  }
-
-  res.status(201).json({ success: true, message });
 });
 
 const sendMessageToUser = asyncHandler(async (req, res) => {
