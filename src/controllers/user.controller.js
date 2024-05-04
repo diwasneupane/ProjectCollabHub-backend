@@ -187,7 +187,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
 const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
-    const user = await User.findById(id).select("-password -refreshToken");
+    const user = await User.findById(id)
+      .select("-password -refreshToken")
+      .populate("messages");
     if (!user) {
       throw new ApiError(404, "User not found");
     }

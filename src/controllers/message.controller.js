@@ -1,8 +1,17 @@
+// message.controller.js
+
 import { Message } from "../models/message.model.js";
 import Group from "../models/groups.model.js";
 import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
+import fs from "fs/promises";
+import path from "path";
+import { log } from "console";
+import { Notification } from "../models/notification.model.js";
+
+const currentModuleUrl = new URL(import.meta.url);
+const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 
 const isAuthorizedForGroup = (group, userId, userRole) => {
   const instructorId = group.instructor?.toString();
@@ -14,12 +23,6 @@ const isAuthorizedForGroup = (group, userId, userRole) => {
     userRole === "admin"
   );
 };
-
-import fs from "fs/promises";
-import path from "path";
-
-const currentModuleUrl = new URL(import.meta.url);
-const currentModuleDir = path.dirname(currentModuleUrl.pathname);
 
 const sendMessageToGroup = asyncHandler(async (req, res) => {
   const { groupId, content } = req.body;
@@ -41,6 +44,11 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
 
   if (!isAuthorizedForGroup(group, senderId, userRole)) {
     throw new ApiError(403, "Not authorized to send messages to this group");
+  }
+
+  const sender = await User.findById(senderId);
+  if (!sender) {
+    throw new ApiError(404, "Sender not found");
   }
 
   const messageData = {
@@ -72,6 +80,17 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
   group.messages.push(message._id);
   await group.save();
 
+  // Create a notification for the group members
+  const notification = new Notification({
+    type: "group_message",
+    message: `${sender.username} sent a new message to the group ${group.name}`,
+    groupId: groupId,
+    sender: senderId,
+    relatedMessage: message._id,
+  });
+
+  await notification.save();
+
   const io = req.app.get("io");
   if (io) {
     io.to(groupId).emit("newGroupMessage", { message });
@@ -81,59 +100,53 @@ const sendMessageToGroup = asyncHandler(async (req, res) => {
 });
 
 const sendMessageToUser = asyncHandler(async (req, res) => {
-  const { userId, content } = req.body;
-  const { _id: senderId } = req.user;
+  try {
+    const { content } = req.body;
+    const userId = req.params.userId;
+    const senderId = req.user._id;
 
-  console.log("Request file:", req.file); // Debugging information
+    console.log("Sender ID:", senderId);
+    console.log(userId);
 
-  const attachment = req.file
-    ? {
-        filename: req.file.filename,
+    let attachment = null;
+    if (req.file) {
+      attachment = {
+        filename: req.file.originalname,
         path: req.file.path,
         mimeType: req.file.mimetype,
-      }
-    : null;
+      };
+    }
 
-  // Check if user exists
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new ApiError(404, "User not found");
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log("User not found");
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    console.log("User found:", user);
+
+    const message = await Message.create({
+      content,
+      user: userId,
+      sender: senderId,
+      attachment,
+      createdAt: new Date(),
+    });
+
+    console.log("Message created:", message);
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("newUserMessage", { message });
+    }
+
+    res.status(201).json({ success: true, message });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
-
-  // Create message and emit via socket.io
-  const message = await Message.create({
-    content,
-    user: userId,
-    sender: senderId,
-    attachment,
-    createdAt: new Date(),
-  });
-
-  const io = req.app.get("io");
-  if (io) {
-    io.emit("newUserMessage", { message });
-  }
-
-  res.status(201).json({ success: true, message });
-});
-
-const wordSearchInGroups = asyncHandler(async (req, res) => {
-  const { searchTerm } = req.query;
-  const { groupIds } = req.body;
-
-  if (!groupIds || groupIds.length === 0) {
-    throw new ApiError(400, "Group IDs are required");
-  }
-  if (!searchTerm || searchTerm.trim() === "") {
-    throw new ApiError(400, "Search term is required");
-  }
-
-  const messages = await Message.find({
-    group: { $in: groupIds },
-    content: new RegExp(searchTerm, "i"),
-  });
-
-  res.status(200).json({ success: true, messages });
 });
 
 const getGroupMessages = asyncHandler(async (req, res) => {
@@ -152,19 +165,16 @@ const getGroupMessages = asyncHandler(async (req, res) => {
   const messages = await Message.find({ group: groupId }).populate(
     "user",
     "username"
-  ); // Assuming there's a field 'user' in the Message schema referencing the user who sent the message
+  );
 
   res.status(200).json({ success: true, group, messages });
 });
-// Get user-specific messages
 const getUserMessages = asyncHandler(async (req, res) => {
-  const { _id: userId } = req.user;
-
-  const messages = await Message.find({ user: userId });
-
-  if (!messages || messages.length === 0) {
-    throw new ApiError(404, "No messages found for this user");
-  }
+  const { userId } = req.params;
+  const messages = await Message.find({ user: userId }).populate(
+    "sender",
+    "username"
+  );
 
   res.status(200).json({ success: true, messages });
 });
@@ -172,7 +182,6 @@ const getUserMessages = asyncHandler(async (req, res) => {
 export {
   sendMessageToGroup,
   sendMessageToUser,
-  wordSearchInGroups,
   getGroupMessages,
   getUserMessages,
 };

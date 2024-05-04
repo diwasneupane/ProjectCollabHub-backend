@@ -2,7 +2,6 @@ import express from "express";
 import {
   sendMessageToGroup,
   sendMessageToUser,
-  wordSearchInGroups,
   getGroupMessages,
   getUserMessages,
 } from "../controllers/message.controller.js";
@@ -31,7 +30,7 @@ router.post(
 );
 
 router.post(
-  "/send-message-to-user",
+  "/send-message-to-user/:userId",
   upload,
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
@@ -41,17 +40,16 @@ router.post(
 );
 
 router.get(
-  "/word-search",
-  authenticateToken,
-  authorizeRole(["admin", "instructor", "student"]),
-  wordSearchInGroups
-);
-
-router.get(
   "/group-messages/:groupId",
   authenticateToken,
   authorizeRole(["admin", "instructor", "student"]),
   getGroupMessages
+);
+router.get(
+  "/user-messages/:userId",
+  authenticateToken,
+  authorizeRole(["admin", "instructor", "student"]),
+  getUserMessages
 );
 
 router.get("/user-messages", authenticateToken, getUserMessages);
