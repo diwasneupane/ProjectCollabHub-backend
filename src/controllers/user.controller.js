@@ -25,23 +25,16 @@ const generateAccessAndRefreshTokens = async (_id) => {
   }
 };
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, password, role, studentId, fullName, email, phone } =
+  const { username, role, password, studentId, fullName, email, phone } =
     req.body;
 
-  if (
-    [username, password, fullName, email, phone].some(
-      (field) => field?.trim() === ""
-    )
-  ) {
+  console.log("Received data:", req.body);
+  if ([username, password, fullName].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
   if (role === "student" && !studentId) {
     throw new ApiError(400, "Student ID is required for students");
-  }
-
-  if (role !== "student" && studentId) {
-    throw new ApiError(400, "Only students can have a Student ID");
   }
 
   try {
@@ -74,10 +67,6 @@ const registerUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
-  if (!createdUser) {
-    throw new ApiError(500, "Error while creating user");
-  }
-
   res
     .status(200)
     .json(new ApiResponse(200, createdUser, "User registered successfully"));
@@ -85,14 +74,19 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 
-  // Find the user
   const user = await User.findOne({ username });
 
   if (!user || !(await user.isPasswordCorrect(password))) {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  // Determine user role
+  if (user.isApproved === false) {
+    throw new ApiError(
+      403,
+      "User not approved. Please contact admin for approval."
+    );
+  }
+
   let role = "";
   if (user.role === "admin") {
     role = "admin";

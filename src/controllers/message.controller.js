@@ -190,24 +190,34 @@ const sendMessageToUser = asyncHandler(async (req, res) => {
 });
 
 const getGroupMessages = asyncHandler(async (req, res) => {
-  const { groupId } = req.params;
-  const { _id: userId, role: userRole } = req.user;
+  try {
+    const { groupId } = req.params;
+    const { _id: userId, role: userRole } = req.user;
 
-  const group = await Group.findById(groupId);
-  if (!group) {
-    throw new ApiError(404, "Group not found");
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Group not found" });
+    }
+
+    if (!isAuthorizedForGroup(group, userId, userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view messages from this group",
+      });
+    }
+
+    const messages = await Message.find({ group: groupId }).populate(
+      "user",
+      "username"
+    );
+
+    res.status(200).json({ success: true, group, messages });
+  } catch (error) {
+    console.error("Error fetching group messages:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
-
-  if (!isAuthorizedForGroup(group, userId, userRole)) {
-    throw new ApiError(403, "Not authorized to view messages from this group");
-  }
-
-  const messages = await Message.find({ group: groupId }).populate(
-    "user",
-    "username"
-  );
-
-  res.status(200).json({ success: true, group, messages });
 });
 const getUserMessages = asyncHandler(async (req, res) => {
   const { userId } = req.params;

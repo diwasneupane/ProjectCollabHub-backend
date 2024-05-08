@@ -19,13 +19,13 @@ const userSchema = new mongoose.Schema(
     studentId: {
       type: Number,
       validate: {
-        validator: function (e) {
-          // Allow studentId only if the role is "student"
-          return this.role === "student" ? !!e : true;
+        validator: function (value) {
+          return this.role === "student" ? Boolean(value) : true;
         },
-        message: "Student ID is only applicable for students",
+        message: "Student ID is required for students",
       },
-      unique: true,
+      sparse: true,
+      unique: true, // Ensure uniqueness
     },
     fullName: {
       type: String,
