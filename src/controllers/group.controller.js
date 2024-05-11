@@ -11,7 +11,11 @@ const createGroup = asyncHandler(async (req, res) => {
 
   try {
     const existingGroup = await Group.findOne({ name });
-
+    if (existingGroup) {
+      return res
+        .status(400)
+        .json(new ApiError(error.statusCode, error.message));
+    }
     const group = new Group({
       name,
       instructor,

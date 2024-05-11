@@ -1,6 +1,0 @@
-1) file sending in message
-2) making message auto render
-3) send notification to all user
-4) message box in member section
-6) filtering the user and instructor part
-7) make user and instuctor route same ways 

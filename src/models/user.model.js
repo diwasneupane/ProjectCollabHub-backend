@@ -54,7 +54,6 @@ const userSchema = new mongoose.Schema(
     notifications: [
       { type: mongoose.Schema.Types.ObjectId, ref: "Notification" },
     ],
-    // Reference to messages
     messages: [{ type: mongoose.Schema.Types.ObjectId, ref: "Message" }],
   },
   { timestamps: true }
@@ -62,8 +61,19 @@ const userSchema = new mongoose.Schema(
 
 // HashPassword
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) {
+    next();
+    return;
+  }
+
   this.password = await bcrypt.hash(this.password, 10);
+
+  if (this.role === "instructor" || this.role === "admin") {
+    this.isApproved = true;
+  } else if (this.role === "student") {
+    this.isApproved = false;
+  }
+
   next();
 });
 
