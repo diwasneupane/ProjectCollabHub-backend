@@ -1,10 +1,13 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { User } from "../models/user.model.js";
+import connectDB from "./index.js";
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGODB_URI);
+connectDB().then(async () => {
+  await seedAdmin();
+  process.exit(1);
+});
 
 const seedAdmin = async () => {
   try {
@@ -12,31 +15,24 @@ const seedAdmin = async () => {
 
     if (existingAdmin) {
       console.log("Admin already exists.");
-      mongoose.disconnect();
       return;
     }
 
     const adminUsername = "admin";
     const adminPassword = "Admin@123";
-
-    const newAdmin = new User({
+    const newAdminData = {
       username: adminUsername,
       password: adminPassword,
       role: "admin",
       fullName: "Default Admin",
       email: "admin@example.com",
       phone: "123-456-7890",
-      isApproved: true,
-    });
+    };
 
-    await newAdmin.save();
-    console.log("Admin created successfully.");
+    const newAdmin = await User.create(newAdminData);
 
-    mongoose.disconnect();
+    console.log("Admin created successfully:", newAdmin);
   } catch (error) {
     console.error("Error seeding admin:", error);
-    mongoose.disconnect();
   }
 };
-
-seedAdmin();
