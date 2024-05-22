@@ -137,6 +137,8 @@ app.post(
       subject: "Invitation to join KOS system",
       html: `
       <p>You have been invited to join the KOS system. Click <a href="${link}">here</a> to sign up.</p>
+      <p>Student ID: <strong>${studentId}</strong></p>
+      <p>Invitation code: <strong>${invitationCode}</strong></p>
     `,
     });
 
