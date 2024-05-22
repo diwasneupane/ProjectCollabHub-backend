@@ -11,6 +11,13 @@ import notificationRouter from "./routes/notification.routes.js";
 import { Notification } from "./models/notification.model.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import nodemailer from "nodemailer";
+import { Invitation } from "./models/invitation.model.js";
+import {
+  authenticateToken,
+  authorizeRole,
+} from "./middlewares/auth.middlewares.js";
+
 const app = express();
 
 app.use(
@@ -71,6 +78,73 @@ app.post("/api/v1/message/send-message", async (req, res) => {
     res.status(500).send("Error sending message");
   }
 });
+
+const transporter = nodemailer.createTransport({
+  host: process.env.MAIL_HOST,
+  port: process.env.MAIL_PORT,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
+
+app.post(
+  "/api/v1/invite-student",
+  authenticateToken,
+  authorizeRole(["admin", "instructor"]),
+  async (req, res) => {
+    const { email, studentId } = req.body;
+
+    if (!email) {
+      return res.status(400).send("Email is required");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).send("Invalid email");
+    }
+
+    if (!studentId) {
+      return res.status(400).send("Student ID is required");
+    }
+
+    let invitationCode = null;
+
+    do {
+      invitationCode = Math.random()
+        .toString(36)
+        .substring(2, 10)
+        .toUpperCase();
+    } while (await Invitation.exists({ studentId, invitationCode }));
+
+    await Invitation.where({ studentId }).deleteMany();
+
+    await Invitation.create({
+      email,
+      studentId,
+      invitationCode,
+      isUsed: false,
+    });
+
+    const link = `${process.env.APP_URL}/register?invitationCode=${invitationCode}&studentId=${studentId}`;
+
+    transporter.sendMail({
+      from: {
+        address: process.env.MAIL_FROM_ADDRESS,
+        name: process.env.MAIL_FROM_NAME,
+      },
+      to: email,
+      subject: "Invitation to join KOS system",
+      html: `
+      <p>You have been invited to join the KOS system. Click <a href="${link}">here</a> to sign up.</p>
+    `,
+    });
+
+    return res.json({
+      message: "Invitation sent successfully",
+    });
+  }
+);
 
 io.on("connection", (socket) => {
   console.log(`New connection: ${socket.id}`);

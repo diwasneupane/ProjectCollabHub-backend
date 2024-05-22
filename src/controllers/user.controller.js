@@ -2,7 +2,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import jwt from "jsonwebtoken";
+import { Invitation } from "../models/invitation.model.js";
 import { z } from "zod";
 import userValidation from "../utils/user_validation.js";
 
@@ -25,16 +25,45 @@ const generateAccessAndRefreshTokens = async (_id) => {
   }
 };
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, role, password, studentId, fullName, email, phone } =
-    req.body;
+  const {
+    username,
+    role,
+    password,
+    studentId,
+    fullName,
+    email,
+    phone,
+    invitationCode,
+  } = req.body;
 
   console.log("Received data:", req.body);
   if ([username, password, fullName].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
-  if (role === "student" && !studentId) {
-    throw new ApiError(400, "Student ID is required for students");
+  let invitation = null
+  
+  if (role === "student") {
+    if (!studentId) {
+      throw new ApiError(400, "Student ID is required for students");
+    }
+
+    if (!invitationCode) {
+      return res.status(400).send("Invitation code is required");
+    }
+
+    invitation = await Invitation.findOne({
+      invitationCode,
+      studentId,
+    })
+    
+    if(!invitation){
+      return res.status(400).send("Invalid invitation code");
+    }
+
+    if (invitation.isUsed) {
+      return res.status(400).send("Invitation code is already used");
+    }    
   }
 
   try {
@@ -62,6 +91,11 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     phone,
   });
+
+  if(invitation) {
+    invitation.isUsed = true;
+    invitation.save();
+  }
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
