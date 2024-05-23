@@ -57,7 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
       studentId,
     })
     
-    if(!invitation){
+    if(!invitation || invitation.studentId !== studentId){
       return res.status(400).send("Invalid invitation code");
     }
 
